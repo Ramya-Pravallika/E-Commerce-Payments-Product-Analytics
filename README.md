@@ -2,6 +2,9 @@
 
 An end-to-end analytics project built on the public Olist Brazilian E-Commerce dataset. It downloads the source data directly with KaggleHub, builds an indexed SQLite warehouse, computes customer and operations analytics, fits statistical models, simulates a checkout experiment, and presents results in an interactive Streamlit dashboard. The Power BI semantic-layer guide remains available in [powerbi/olist_powerbi_dax.md](powerbi/olist_powerbi_dax.md).
 
+## Live Dashboard 
+https://olist-ecommerce-payments.streamlit.app/
+
 ## Quick start
 
 Use Python 3.10 or newer. Install the dependencies, then run:
