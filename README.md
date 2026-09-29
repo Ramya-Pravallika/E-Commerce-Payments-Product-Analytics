@@ -14,6 +14,14 @@ streamlit run app.py
 
 The first pipeline run downloads all eight official CSV files through KaggleHub, so Kaggle access may require account/API configuration depending on the environment. No local CSV folder is required. The database is written to `olist_analytics.db` next to the scripts. To use a different output path, pass `--db path/to/database.db` to `init_db.py`.
 
+## Deploy to Streamlit Community Cloud
+
+1. Push this repository to GitHub.
+2. In Streamlit Community Cloud, create an app from this repository, select the `main` branch, and set the app entry point to `app.py`.
+3. Deploy. The SQLite file is intentionally not committed; on first launch the app downloads the public Olist dataset through KaggleHub and builds the local warehouse automatically, importing one CSV at a time to reduce peak memory.
+
+The first cold start therefore needs outbound network access and enough deployment disk space for the Kaggle dataset and generated database. Later reruns use the generated local database. If the hosting instance is rebuilt, the database is ephemeral and will be regenerated on its next start. The project does not require MySQL credentials or Streamlit secrets.
+
 ## Included analytics
 
 - Indexed SQLite raw tables for customers, geolocation, orders, items, payments, reviews, products, and sellers.

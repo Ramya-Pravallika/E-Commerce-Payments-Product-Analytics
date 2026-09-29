@@ -78,12 +78,50 @@ def build_sqlite(frames: dict[str, pd.DataFrame], db_path: Path = DATABASE_PATH)
     LOGGER.info("SQLite warehouse built at %s", db_path)
 
 
+def build_sqlite_from_dataset(dataset_path: Path, db_path: Path = DATABASE_PATH) -> None:
+    """Load CSVs one at a time to limit peak memory use on hosted app instances."""
+    dataset_path = dataset_path.expanduser().resolve()
+    db_path = db_path.expanduser().resolve()
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path = db_path.with_suffix(db_path.suffix + ".tmp")
+    if temporary_path.exists():
+        temporary_path.unlink()
+    try:
+        with sqlite3.connect(temporary_path) as connection:
+            connection.execute("PRAGMA journal_mode=DELETE")
+            connection.execute("PRAGMA foreign_keys=ON")
+            for table_name, filename in SOURCE_FILES.items():
+                csv_path = dataset_path / filename
+                if not csv_path.is_file():
+                    raise FileNotFoundError(f"Kaggle dataset is missing required file: {csv_path}")
+                frame = pd.read_csv(csv_path, low_memory=False)
+                if frame.empty:
+                    raise ValueError(f"Required source file is empty: {filename}")
+                frame.to_sql(table_name, connection, if_exists="replace", index=False, chunksize=10_000)
+                LOGGER.info("Imported %-15s %8s rows", table_name, f"{len(frame):,}")
+                del frame
+            for statement in INDEX_STATEMENTS:
+                connection.execute(statement)
+            connection.execute("ANALYZE")
+            connection.commit()
+        temporary_path.replace(db_path)
+    except Exception:
+        temporary_path.unlink(missing_ok=True)
+        raise
+    LOGGER.info("SQLite warehouse built at %s", db_path)
+
+
+def download_and_build(db_path: Path = DATABASE_PATH) -> None:
+    """Download Olist with KaggleHub and build the local SQLite database."""
+    dataset_path = Path(kagglehub.dataset_download(DATASET_HANDLE))
+    build_sqlite_from_dataset(dataset_path, db_path)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Download and build the Olist SQLite analytics warehouse.")
     parser.add_argument("--db", type=Path, default=DATABASE_PATH, help="Output SQLite database path.")
     args = parser.parse_args()
-    frames = load_source_data()
-    build_sqlite(frames, args.db)
+    download_and_build(args.db)
 
 
 if __name__ == "__main__":

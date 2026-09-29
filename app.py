@@ -22,6 +22,7 @@ from analytics import (
     regression_results,
     rfm_segments,
 )
+from init_db import DATABASE_PATH, download_and_build
 
 st.set_page_config(page_title="Olist Product Analytics", page_icon="🛒", layout="wide", initial_sidebar_state="expanded")
 st.markdown("""
@@ -64,6 +65,13 @@ def cached_analytics(name: str) -> Any:
     return loaders[name]()
 
 
+@st.cache_resource(show_spinner="Preparing the Olist analytics warehouse on first launch…")
+def ensure_warehouse() -> None:
+    """Build the ignored local database automatically when deployed without it."""
+    if not DATABASE_PATH.is_file():
+        download_and_build(DATABASE_PATH)
+
+
 def filter_months(frame: pd.DataFrame, label: str = "Analysis period") -> pd.DataFrame:
     """Render a date slider and filter monthly records inclusively."""
     result = frame.copy()
@@ -83,6 +91,12 @@ def money(value: float) -> str:
 
 
 try:
+    try:
+        ensure_warehouse()
+    except Exception as error:
+        st.error(f"Could not prepare the Olist data warehouse: {error}")
+        st.info("The first launch downloads the public dataset through KaggleHub. Check that the deployment has outbound internet access and adequate disk space.")
+        st.stop()
     source_summary = cached_analytics("summary")
     with st.sidebar.expander("Warehouse health", expanded=False):
         for table, count in source_summary.items():
